@@ -12,6 +12,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"time"
+	"flag"
 )
 
 var (
@@ -82,8 +83,14 @@ func ToggleCoffee(c *http.Client, sid string) {
 }
 
 func main() {
+	usernamePtr := flag.String("username", "", "Fritz!Box username")
+	passwordPtr := flag.String("password", "", "Fritz!Box password")
+	devicePtr := flag.String("device", "en0", "Network device which will be used for sniffing the dash buttons ARP packets")
+	flag.Parse()
+	if *usernamePtr == "" { log.Fatal("Fritz!Box username must be set.") }
+	if *passwordPtr == "" { log.Fatal("Fritz!Box password must be set.") }
 	// Open device
-	handle, err = pcap.OpenLive(device, snapshotLen, promiscuous, timeout)
+	handle, err = pcap.OpenLive(*devicePtr, snapshotLen, promiscuous, timeout)
 	if err != nil {log.Fatal(err) }
 	defer handle.Close()
 
@@ -93,9 +100,6 @@ func main() {
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
-	username := ""
-	password := ""
-
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -103,7 +107,7 @@ func main() {
 
 	for range packetSource.Packets() {
 		challenge := GetChallenge(client)
-		sid := GetSID(client, username, password, challenge)
+		sid := GetSID(client, *usernamePtr, *passwordPtr, challenge)
 		ToggleCoffee(client, sid)
 	}
 
